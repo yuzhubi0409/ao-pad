@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VamoSense — AI Fatigue Detection</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+
+
+<!-- Dashboard HTML -->
+<div class="ao-header">
+  <div style="display:flex;align-items:center;gap:20px;">
+    <span class="ao-logo">AO Pad</span>
+    <span class="ao-match-badge">Australian Open 2026 · Coaching Team Only</span>
+  </div>
+  <button class="ao-back-btn" onclick="hideDashboard()">← Back to Site</button>
+</div>
+
+<div class="ao-main">
+
+  <!-- Signal Charts -->
+  <div class="ao-charts-col">
+    <div class="ao-signal-chart">
+      <div class="ao-chart-title">Raw Signal</div>
+      <div class="ao-canvas-wrap"><canvas id="rawChart"></canvas></div>
+    </div>
+    <div class="ao-signal-chart">
+      <div class="ao-chart-title">Filtered Signal</div>
+      <div class="ao-canvas-wrap"><canvas id="filtChart"></canvas></div>
+    </div>
+    <div class="ao-signal-chart">
+      <div class="ao-chart-title">Fatigue Variance</div>
+      <div class="ao-canvas-wrap"><canvas id="varChart"></canvas></div>
+    </div>
+    <div class="ao-signal-chart">
+      <div class="ao-chart-title">FFT Spectrum</div>
+      <div class="ao-canvas-wrap"><canvas id="fftChart"></canvas></div>
+    </div>
+
+    <!-- Fatigue Trend (shared) -->
+    <div class="ao-trend-wrap">
+      <div class="ao-chart-title">Fatigue Trend — Last 20 Updates</div>
+      <div class="ao-canvas-wrap" style="height:130px;"><canvas id="trendChart"></canvas></div>
+      <div class="ao-trend-legend">
+        <span><span class="ao-legend-dot" style="background:#8B5CF6;"></span>Alcaraz</span>
+        <span><span class="ao-legend-dot" style="background:#F59E0B;"></span>Sinner</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Cards -->
+  <div class="ao-cards-col">
+    <!-- Alcaraz -->
+    <div class="ao-player-card" id="cardAlcaraz">
+      <div class="ao-player-name">Alcaraz</div>
+      <div class="ao-player-score" id="scoreAlcaraz">--</div>
+      <div class="ao-score-label">Fatigue Score</div>
+      <div class="ao-thigh-row">
+        <div class="ao-thigh">
+          <div class="ao-thigh-label">Left Thigh</div>
+          <div class="ao-thigh-val" id="ltAlcaraz">--</div>
+        </div>
+        <div class="ao-thigh">
+          <div class="ao-thigh-label">Right Thigh</div>
+          <div class="ao-thigh-val" id="rtAlcaraz">--</div>
+        </div>
+      </div>
+      <span class="ao-status-pill" id="statusAlcaraz">Loading…</span>
+    </div>
+
+    <!-- Sinner -->
+    <div class="ao-player-card" id="cardSinner">
+      <div class="ao-player-name">Sinner</div>
+      <div class="ao-player-score" id="scoreSinner">--</div>
+      <div class="ao-score-label">Fatigue Score</div>
+      <div class="ao-thigh-row">
+        <div class="ao-thigh">
+          <div class="ao-thigh-label">Left Thigh</div>
+          <div class="ao-thigh-val" id="ltSinner">--</div>
+        </div>
+        <div class="ao-thigh">
+          <div class="ao-thigh-label">Right Thigh</div>
+          <div class="ao-thigh-val" id="rtSinner">--</div>
+        </div>
+      </div>
+      <span class="ao-status-pill" id="statusSinner">Loading…</span>
+    </div>
+  </div>
+</div>
+
+<!-- Footer (spans full width) -->
+<div class="ao-footer">
+  <span>Session · AO 2026 · Rod Laver Arena</span>
+  <span class="ao-enc-badge"><span class="ao-enc-dot"></span>Encrypted · Private</span>
+</div>
+
+</div><!-- end #ao-dashboard -->
+
+<!-- ══════════════════════════════════════════════════════════
+     DASHBOARD LOGIC (self-contained simulation)
+     ══════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  /* ── Simulation state ── */
+  var state = {
+    alcaraz: { score: 55, lt: 52, rt: 58 },
+    sinner:  { score: 42, lt: 40, rt: 44 }
+  };
+  var trend = { alcaraz: [], sinner: [] };
+  var rawPts=[], filtPts=[], varPts=[], fftPts=[];
+  var dashInterval = null;
+  var chartsReady   = false;
+
+  /* ── Canvas helpers ── */
+  function drawLine(id, pts, color, minY, maxY){
+    var canvas = document.getElementById(id);
+    if(!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W = canvas.clientWidth || canvas.parentElement.clientWidth || 400;
+    var H = canvas.clientHeight || 110;
+    canvas.width  = W;
+    canvas.height = H;
+    ctx.clearRect(0,0,W,H);
+    if(pts.length < 2) return;
+    // Axes
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+    // Line
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    var range = maxY - minY || 1;
+    for(var i=0;i<pts.length;i++){
+      var x = (i/(pts.length-1))*W;
+      var y = H - ((pts[i]-minY)/range)*H;
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+
+  function drawTrend(id, aData, sData){
+    var canvas = document.getElementById(id);
+    if(!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W = canvas.clientWidth || canvas.parentElement.clientWidth || 400;
+    var H = canvas.clientHeight || 130;
+    canvas.width=W; canvas.height=H;
+    ctx.clearRect(0,0,W,H);
+    // Grid
+    ctx.strokeStyle='rgba(255,255,255,0.06)';
+    ctx.lineWidth=1;
+    [0.25,0.5,0.75].forEach(function(f){
+      ctx.beginPath(); ctx.moveTo(0,H*f); ctx.lineTo(W,H*f); ctx.stroke();
+    });
+    function drawSeries(data, color){
+      if(data.length<2) return;
+      ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+      for(var i=0;i<data.length;i++){
+        var x=(i/(Math.max(data.length-1,1)))*W;
+        var y=H-((data[i]-0)/100)*H;
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    drawSeries(aData,'#8B5CF6');
+    drawSeries(sData,'#F59E0B');
+  }
+
+  /* ── Data simulation ── */
+  function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+  function randWalk(v,step,lo,hi){ return clamp(v+(Math.random()-0.48)*step,lo,hi); }
+
+  function tick(){
+    // Player fatigue
+    state.alcaraz.score = Math.round(randWalk(state.alcaraz.score, 4, 20, 95));
+    state.alcaraz.lt    = Math.round(randWalk(state.alcaraz.lt,    3, 15, 95));
+    state.alcaraz.rt    = Math.round(randWalk(state.alcaraz.rt,    3, 15, 95));
+    state.sinner.score  = Math.round(randWalk(state.sinner.score,  3, 20, 90));
+    state.sinner.lt     = Math.round(randWalk(state.sinner.lt,     3, 15, 90));
+    state.sinner.rt     = Math.round(randWalk(state.sinner.rt,     3, 15, 90));
+
+    // Trend history
+    trend.alcaraz.push(state.alcaraz.score); if(trend.alcaraz.length>20) trend.alcaraz.shift();
+    trend.sinner.push(state.sinner.score);   if(trend.sinner.length>20)  trend.sinner.shift();
+
+    // Signals
+    var t = Date.now()*0.001;
+    var rawV  = Math.sin(t*2.3)*0.5 + Math.sin(t*7)*0.2 + (Math.random()-0.5)*0.3;
+    var filtV = Math.sin(t*2.3)*0.5 + (Math.random()-0.5)*0.05;
+    var varV  = state.alcaraz.score/100 * 0.8 + (Math.random()-0.5)*0.1;
+    rawPts.push(rawV);   if(rawPts.length>80) rawPts.shift();
+    filtPts.push(filtV); if(filtPts.length>80) filtPts.shift();
+    varPts.push(varV);   if(varPts.length>80) varPts.shift();
+
+    // FFT simulated (spiky spectrum)
+    fftPts=[];
+    for(var k=0;k<60;k++){
+      var amp = (k===5||k===12||k===23)?0.6+Math.random()*0.3:Math.random()*0.15;
+      fftPts.push(amp);
+    }
+
+    // Update DOM
+    updateCard('Alcaraz', state.alcaraz);
+    updateCard('Sinner',  state.sinner);
+
+    // Redraw charts
+    drawLine('rawChart',  rawPts,  '#1a6fb5', -1.2, 1.2);
+    drawLine('filtChart', filtPts, '#1D9E75', -1.2, 1.2);
+    drawLine('varChart',  varPts,  '#EF9F27',  0,    1);
+    drawLine('fftChart',  fftPts,  '#4a9eff',  0,    1);
+    drawTrend('trendChart', trend.alcaraz, trend.sinner);
+  }
+
+  function getStatus(score){
+    if(score>70) return 'critical';
+    if(score>40) return 'monitor';
+    return 'stable';
+  }
+  function getStatusLabel(score){
+    if(score>70) return 'Critical';
+    if(score>40) return 'Monitor';
+    return 'Stable';
+  }
+  function scoreColor(score){
+    if(score>70) return '#f44336';
+    if(score>40) return '#F5C842';
+    return '#4caf50';
+  }
+
+  function updateCard(name, data){
+    var n = name.toLowerCase();
+    var el = function(id){ return document.getElementById(id+name); };
+    el('score').textContent = data.score;
+    el('score').style.color = scoreColor(data.score);
+    el('lt').textContent    = data.lt;
+    el('rt').textContent    = data.rt;
+    var st = getStatus(data.score);
+    var pill = el('status');
+    pill.textContent  = getStatusLabel(data.score);
+    pill.className    = 'ao-status-pill '+st;
+    var card = document.getElementById('card'+name);
+    card.className = 'ao-player-card '+st;
+  }
+
+  /* ── Show / Hide ── */
+  window.showDashboard = function(){
+    var dash = document.getElementById('ao-dashboard');
+    dash.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    // Kick off simulation
+    tick(); // immediate first frame
+    if(!dashInterval) dashInterval = setInterval(tick, 2000);
+  };
+
+  window.hideDashboard = function(){
+    var dash = document.getElementById('ao-dashboard');
+    dash.style.display = 'none';
+    document.body.style.overflow = '';
+    if(dashInterval){ clearInterval(dashInterval); dashInterval=null; }
+  };
+
+})();
+</script>
+
+</body>
+</html>

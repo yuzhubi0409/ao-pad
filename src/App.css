@@ -1,38 +1,209 @@
-.App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
+/* ── Dashboard layout ─────────────────────────────── */
+/*
+.dashboard {
+  background: linear-gradient(135deg, #048604c2 60%, #0bb438 60%, #def011 50%);
   min-height: 100vh;
+  padding: 10px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 20px;
+  border-radius: 6px;
+}
+*/
+
+ 
+/* ── Header ───────────────────────────────────────── */
+.header {
+  display: flex;
+  flex-direction: column;  /* add this */
+  justify-content: center;
+  align-items: center;     /* change from space-between */
+  padding-bottom: 16px;
+  border-bottom: 0.5px solid rgb(0, 0, 0);
+}
+ 
+.logo {
+  font-size: 60px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  text-align: center; /* add this */
+  width: 100%;        /* add this */
+}
+ 
+.match-badge {
+  font-size: 18px;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.1em;
+}
+ 
+/* ── Main content: charts left, cards right ───────── */
+.main-content {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+ 
+/* ── Left column: charts ──────────────────────────── */
+.charts-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;  /* 2 columns */
+  grid-template-rows: auto auto;   /* 2 rows */
+  gap: 14px;
+}
+ 
+/* ── Right column: player cards ───────────────────── */
+.cards-col {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+ 
+/* ── Glassmorphism card ───────────────────────────── */
+.player-card {
+  background: rgba(74, 101, 176, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.602),
+              inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: border-color 0.4s ease;
+}
+ 
+.player-card:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+}
+ 
+.player-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(208, 254, 2, 0.9);
+  margin-bottom: 12px;
+  letter-spacing: 0.05em;
+}
+ 
+.fatigue-score {
+  font-size: 52px;
+  font-weight: 300;
+  color: #F59E0B;
+  line-height: 1;
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+ 
+.fatigue-label {
+  font-size: 10px;
+  color: rgba(246, 4, 4, 0.654);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 14px;
+}
+ 
+.muscle-row {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+ 
+.muscle-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  width: 72px;
+  flex-shrink: 0;
+}
+ 
+.muscle-bar {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border-radius: 1px;
+  height: 2px;
+  overflow: hidden;
+}
+ 
+.muscle-fill {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 0.6s ease;
+}
+ 
+.muscle-val {
+  font-size: 11px;
+  font-weight: 500;
+  width: 26px;
+  text-align: right;
+  flex-shrink: 0;
+}
+ 
+.status {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 0.5px solid rgba(255,255,255,0.05);
+  color: #1D9E75;
+}
+ 
+/* ── Signal charts ────────────────────────────────── */
+.signal-chart {
+  background: rgba(10, 20, 50, 0.5);
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 14px 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-.App-link {
-  color: #61dafb;
+.chart-title {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+/* ── Footer ───────────────────────────────────────── */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 0.5px solid rgb(0, 0, 0);
+  margin-top: 8px;
+}
+ 
+.footer-text {
+  font-size: 10px;
+  color: rgba(255,255,255,0.12);
+  letter-spacing: 0.08em;
+}
+ 
+.enc-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: rgba(8, 0, 0, 0.12);
+}
+ 
+.enc-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #1D9E75;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.dashboard {
+  min-height: 100vh;
+  padding: 10px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 20px;
+  border-radius: 6px;
 }
+
